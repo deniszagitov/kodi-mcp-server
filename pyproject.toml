@@ -1,0 +1,10 @@
+[project]
+name = "kodi-mcp-reliable"
+version = "2.0.0"
+description = "Kodi MCP with explicit playback state, queues and YouTube plugin support"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = ["mcp>=1.20,<2"]
+
+[tool.uv]
+package = false
