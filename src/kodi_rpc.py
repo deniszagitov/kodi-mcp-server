@@ -152,7 +152,7 @@ def item(kind, value):
     return {"file": value}
 
 
-PROPERTIES = ["type", "speed", "time", "totaltime", "percentage", "position", "playlistid", "canseek", "canpause",
+PROPERTIES = ["type", "speed", "time", "totaltime", "percentage", "position", "playlistid", "canseek",
               "audiostreams", "currentaudiostream", "subtitles", "currentsubtitle", "subtitleenabled"]
 
 
@@ -168,7 +168,19 @@ class Kodi:
         if method is not None:
             if method not in methods:
                 raise ValueError("🛑 Метод отсутствует в фактическом Kodi JSON-RPC")
-            return {"version": version, "method": method, "schema": methods[method]}
+            types, selected, pending = schema.get("types", {}), {}, [methods[method]]
+            while pending and len(selected) < 100:
+                node = pending.pop()
+                if isinstance(node, list):
+                    pending.extend(node)
+                elif isinstance(node, dict):
+                    for key, value in node.items():
+                        if key == "$ref" and value in types and value not in selected:
+                            selected[value] = types[value]
+                            pending.append(types[value])
+                        elif isinstance(value, (dict, list)):
+                            pending.append(value)
+            return {"version": version, "method": method, "schema": methods[method], "types": selected}
         return {"version": version, "methods": sorted(methods), "method_count": len(methods),
                 "screenshot_supported": "GUI.TakeScreenshot" in methods,
                 "transport": "loopback TCP; удалённый доступ только через аутентифицированный SSH"}
@@ -331,6 +343,7 @@ class Kodi:
         if action not in allowed:
             raise ValueError("🛑 Действие ввода не разрешено")
         await self.rpc.call("Input." + allowed[action])
+        await asyncio.sleep(0.2)
         return await self.state()
 
     async def browse(self, url, limit=30):
@@ -355,4 +368,5 @@ class Kodi:
                     raise ValueError("🛑 Разрешено окно официального репозитория или YouTube")
             params["parameters"] = [path]
         await self.rpc.call("GUI.ActivateWindow", params)
+        await asyncio.sleep(0.3)
         return await self.state()

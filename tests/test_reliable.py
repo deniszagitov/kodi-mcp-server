@@ -27,6 +27,8 @@ class FakeRPC:
         if method == "Player.GetActivePlayers":
             return [{"playerid": 1, "type": "video"}] if self.playing else []
         if method == "Player.GetProperties":
+            if "canpause" in params.get("properties", []):
+                raise KodiError("🛑 Kodi v13.5 не объявляет свойство canpause")
             return {"speed": self.speed, "time": {"seconds": self.position}, "totaltime": {"minutes": 2}, "playlistid": 1,
                     "canseek": True, "audiostreams": [{"index": 0}, {"index": 2}], "subtitles": [{"index": 1}]}
         if method == "Player.GetItem":
@@ -117,6 +119,9 @@ class PlaybackTests(unittest.IsolatedAsyncioTestCase):
     async def test_signed_stream_urls_not_exposed(self):
         result = await self.kodi.state()
         self.assertEqual(result["players"][0]["item"]["file"], "https://example.org/a.mp4")
+
+    async def test_state_uses_supported_player_properties(self):
+        self.assertEqual((await self.kodi.state())["players"][0]["time_seconds"], 30)
 
     async def test_invalid_input_does_not_execute_builtin(self):
         with self.assertRaises(ValueError):
